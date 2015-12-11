@@ -1,0 +1,81 @@
+/*for (i <- 5000 until 10000) {
+    val random = new Random()
+    val range = 100 to random.nextInt(400) //number of friends
+    for (j <- 0 to range.end) {
+      val u = random.nextInt(10000) //pick a random user
+      val user = userMap.get(u)
+      if (!friendMap.contains(user)) {
+        friendMap.get(i).friendList += user //add the random user to i's friendlist
+        friendMap.get(u).friendList += userMap.get(i)
+      }
+    }
+  }*/
+  /*for (i <- 1000 until 3000) {
+    val random = new Random()
+    val range = 10 to random.nextInt(25) //number of friends
+    for (j <- 0 to range.end) {
+      val u = random.nextInt(10000) //pick a random user
+      val user = userMap.get(u)
+      if (!friendMap.contains(user)) {
+        friendMap.get(i).friendList += user //add the random user to i's friendlist
+        friendMap.get(u).friendList += userMap.get(i)
+      }
+    }
+  }*/
+  /*for (i <- 3000 until 5000) {
+    //Initialize friendlist of remaining users
+    val random = new Random()
+    val range = 25 to random.nextInt(100) //number of friends
+    for (j <- 0 to range.end) {
+      val u = random.nextInt(10000) //pick a random user
+      val user = userMap.get(u)
+      if (!friendMap.contains(user)) {
+        friendMap.get(i).friendList += user //add the random user to i's friendlist
+        friendMap.get(u).friendList += userMap.get(i)
+      }
+    }
+  }*/
+
+  //initiliaze user's wall
+    /*for (j <- 0 to 10) {
+      if (j % 2 == 0)
+        userMap.get(j).wall += "hello"
+    }*/
+
+
+
+
+
+
+     path(IntNumber / "addalbum") { userid =>  //****check
+            post {
+              respondWithMediaType(`application/json`) {
+                entity(as[MultipartFormData]) {
+                  formData => {
+                    //val ftmp = File.createTempFile("upload", ".jpg", new File("C:\\Users\\Pratyoush\\Desktop\\tmp"))\
+                    detachTo(singleRequestServiceActor) {
+                      complete {
+                        val details = formData.fields.map {
+                          case (name, BodyPart(entity, headers)) =>
+                            val content = new ByteArrayInputStream((entity.data.toByteArray))
+                            val contentType = headers.find(h => h.is("content-type")).get.value
+                            val fileName = headers.find(h => h.is("content-disposition")).get.value.split("filename=").last
+                            val result = saveAttachment("C:\\Users\\Pratyoush\\Desktop\\" + userid + "\\" + fileName, content)
+                            printf("name  " + fileName + "  result  " + result)
+                            (contentType, fileName, result)
+
+
+                        }
+                        s"printing"
+                        /*val ftmp = userProfileMap.get(id).picture.pic
+                    val output = new FileOutputStream(ftmp)
+                    formData.fields.foreach(f =>output.write(f.entity.data.toByteArray))
+                    output.close()
+                    complete("done, file in: " + ftmp.getName())
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }*/

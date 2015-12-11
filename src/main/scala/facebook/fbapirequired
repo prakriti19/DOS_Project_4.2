@@ -1,0 +1,68 @@
+ case class User(
+    id: String,
+    username: Option[String],
+    name: Option[String],
+    first_name: Option[String],
+    middle_name: Option[String],
+    last_name: Option[String],
+    email: Option[String],
+    link: Option[String],
+    gender: Option[String],
+    picture: Option[UserProfilePicContainer]
+    wall: Option[ArrayBuffer]
+  ) {
+    // Ignores Facebook default photo
+    def profilePic: Option[String] = picture.flatMap(p => if (p.data.is_silhouette) None else Some(p.data.url))
+  }
+
+case class FacebookFriends (data: Seq[User])
+
+   case class Page(id: String, name: String, link: String)
+
+  case class Image(
+      width: Int,
+      height: Int,
+      source: String
+    )
+
+    object Image {
+      implicit val ordering: Ordering[Image] = new Ordering[Image] {
+        def compare(x: Image, y: Image): Int = (y.width*y.height) compare (x.width*x.height)
+      }
+    }
+
+  //album
+    case class Photo(
+      id: String,
+      name: Option[String], //this is the photo caption
+      images: Seq[Image]
+    )friends (data: Seq[User])
+
+  case class Page(id: String, name: String, link: String)
+
+
+  implicit val tokenDataFormat = jsonFormat7(TokenData)
+    implicit val tokenDataWrapperFormat = jsonFormat1(TokenDataWrapper)
+    implicit val imageFormat = jsonFormat3(Image.apply)
+    implicit val photoFormat = jsonFormat3(Photo)
+    implicit val cursorsFormat = jsonFormat2(Cursors)
+    implicit val pagingFormat = jsonFormat3(Paging)
+    implicit def responseFormat[T : JsonFormat] = jsonFormat2(Response.apply[T])
+    implicit val userProfilePic = jsonFormat2(UserProfilePic)
+    implicit val userProfilePicContainer = jsonFormat1(UserProfilePicContainer)
+    implicit val userFormat = jsonFormat10(User)
+    implicit val pageFormat = jsonFormat3(Page)
+    implicit val tabFormat = jsonFormat3(Tab)
+    implicit val createdStory = jsonFormat2(CreatedStory)
+    implicit val createdComment = jsonFormat1(CreatedComment)
+    implicit val facebookFriends = jsonFormat1(FacebookFriends)
+    implicit val commentFormat = jsonFormat7(Comment)
+    implicit val propertiesFormat = jsonFormat3(Properties)
+    implicit val shareFormat = jsonFormat12(Share)
+
+    implicit val insightValueFormat = jsonFormat5(InsightValue)
+    implicit val insightDataPointFormat = jsonFormat2(InsightDataPoint)
+    implicit val insightFormat = jsonFormat6(Insight)
+
+    implicit val errorFormat = jsonFormat4(Error)
+    implicit val errorResponseFormat = jsonFormat1(ErrorResponse)
