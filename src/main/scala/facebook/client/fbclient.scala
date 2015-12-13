@@ -27,7 +27,7 @@ object fbclient extends App{
 }
 
 class Master extends Actor with FbApi{
-  import scala.concurrent.ExecutionContext.Implicits.global  //check if this is actually needed or not
+  import scala.concurrent.ExecutionContext.Implicits.global  //***check if this is actually needed or not
   implicit val sys = context.system
   override implicit def actorRefFactory: ActorRefFactory = sys
   val pipeline = sendReceive
