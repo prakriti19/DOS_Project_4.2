@@ -79,3 +79,64 @@
               }
             }
           }*/
+        case "medium" => {
+                context.system.scheduler.schedule(0 seconds, 90 seconds) ({var result = Get("http://localhost:8080/"+userid+"/profile") ~> sendReceive
+                  result.foreach { response =>
+                    println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+                  }
+                  result = Get("http://localhost:8080/"+userid+"/wallposts") ~> sendReceive
+                  result.foreach { response =>
+                    println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+                  }})
+
+                context.system.scheduler.schedule(0 seconds, 150 seconds) ({val random = new Random()
+                  val r = random.nextInt(friendlist.size-1)
+                  var result = Get("http://localhost:8080/"+friendlist(r).toString +"/profile") ~> sendReceive
+                  result.foreach { response =>
+                    println(s"Friends Profile!!!! Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+                  }
+
+                  result = Get("http://localhost:8080/" + userid.toString + "/wallposts/" + friendlist(r).toString + "/addpost?post=Hello" + System.currentTimeMillis()) ~>sendReceive
+                  result.foreach { response =>
+                    println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+                  }})
+              }
+            }
+              case "high" => {
+                      println(friendlist)
+                     /*sys.scheduler.schedule(0 seconds, 3 seconds) ({val random = new Random()
+                      val r = random.nextInt(friendlist.size-1)
+                      println(friendlist(r))})*/
+
+                      context.system.scheduler.schedule(0 seconds, 30 seconds) ({var result = pipeline(Get("http://localhost:8080/"+userid+"/profile"))
+                        result.foreach { response =>
+                          println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+                        }
+                        result = pipeline(Get("http://localhost:8080/"+userid+"/wallposts"))
+                        result.foreach { response =>
+                          println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+                        }})
+
+                      context.system.scheduler.schedule(0 seconds, 60 seconds) ({val random = new Random()
+                        val r = random.nextInt(friendlist.size-1)
+                        var result = pipeline(Get("http://localhost:8080/"+friendlist(r).toString +"/profile"))
+                        result.foreach { response =>
+                          println(s"Friends Profile!!!! Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+                        }
+
+                        result = Get("http://localhost:8080/" + userid.toString + "/wallposts/" + friendlist(r).toString + "/addpost?post=Hello" + System.currentTimeMillis()) ~>sendReceive
+                        result.foreach { response =>
+                          println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+                        }})
+                      /*context.system.scheduler.schedule(0 seconds, 200 seconds) ({val random = new Random()
+                        val r = random.nextInt(pageMap.size-1)
+                        var result = Get("http://localhost:8080/"+r.toString +"/page") ~> sendReceive
+                        result.foreach { response =>
+                          println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+                        }
+
+                        result = Get("http://localhost:8080/" + userid.toString + "/page/addpost/" + userid + "?post=HelloPage" + System.currentTimeMillis()) ~>sendReceive
+                        result.foreach { response =>
+                          println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+                        }})*/
+                    }

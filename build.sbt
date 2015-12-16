@@ -24,6 +24,8 @@ libraryDependencies ++= {
     "org.scalaz"          %%  "scalaz-core"   % "7.1.0",
     "com.typesafe.akka"   %%  "akka-http-experimental"  % "0.7",
     "org.mockito" % "mockito-all" % "1.9.5" % "test",
-    "org.json4s"  %%    "json4s-native"   %   "3.2.10"
+    "org.json4s"  %%    "json4s-native"   %   "3.2.10",
+    "commons-codec" % "commons-codec" % "1.6"
+
   )
 }

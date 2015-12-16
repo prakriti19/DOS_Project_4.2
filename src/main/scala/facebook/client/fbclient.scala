@@ -1,9 +1,18 @@
 package facebook.client
 
 import java.io.File
+import java.math.BigInteger
 import java.util.concurrent.ConcurrentHashMap
+import javax.crypto.spec.{SecretKeySpec, IvParameterSpec}
 
 import akka.actor._
+
+import scala.concurrent.Await
+import akka.pattern.ask
+import akka.actor._
+import akka.util.Timeout
+//import facebook.client.ClientUser.FbApi
+
 /*import facebook.SampleTrait.FacebookFriends
 import facebook.SampleTrait.FbPage
 import facebook.SampleTrait.FbPost
@@ -17,6 +26,19 @@ import spray.routing.HttpService
 import scala.util.Random
 import spray.json._
 import scala.concurrent.duration._
+
+import java.security._
+import javax.crypto._
+import java.security.interfaces._
+import javax.crypto.interfaces.DHKey
+import scala.util.parsing.combinator.RegexParsers
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+
+case class addPost(encrypt:Array[Byte],encryptKey:Array[Byte])
+
 /**
   * Created by Pratyoush on 29-11-2015.
   */
@@ -26,14 +48,14 @@ object fbclient extends App{
   master ! "create"
 }
 
-class Master extends Actor with FbApi{
-  import scala.concurrent.ExecutionContext.Implicits.global  //***check if this is actually needed or not
+class Master extends Actor with SampleTrait{
+  //import scala.concurrent.ExecutionContext.Implicits.global  //***check if this is actually needed or not
   implicit val sys = context.system
   override implicit def actorRefFactory: ActorRefFactory = sys
   val pipeline = sendReceive
     def receive = {
       case "create" => println("Inside Master")
-        for(i<- 0 to 24){
+      /*  for(i<- 0 to 24){
           val friendlist = friendMap.get(i).friendList
           val hashMap = pageMap
           Master.this.FbPage
@@ -44,8 +66,8 @@ class Master extends Actor with FbApi{
           val friendlist = friendMap.get(i).friendList
           val child = context.system.actorOf(Props(new ClientUser(pipeline,i, friendlist)), "activeuser"+i.toString)
           child ! "medium"
-        }
-        for(i<- 46 to 99){
+        }*/
+        for(i<- 0 to 10){
           val friendlist = friendMap.get(i).friendList
           val child = context.system.actorOf(Props(new ClientUser(pipeline,i, friendlist)), "activeuser"+i.toString)
           child ! "low"
@@ -53,126 +75,200 @@ class Master extends Actor with FbApi{
     }
   }
 
-class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[Int]) extends Actor{
-
+class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[Int]) extends Actor with SampleTrait{
+  implicit val sys = context.system
+  override implicit def actorRefFactory: ActorRefFactory = sys
+  //import scala.concurrent.ExecutionContext.Implicits.global  //***check if this is actually needed or not
   //override implicit def executionContext = actorRefFactory.dispatcher
-  println(self.path.name)
+  def SRNG():String = {
+    val random = new scala.util.Random(new java.security.SecureRandom())
+    var key:Array[Char] = Array[Char](0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
+    for(i<- 0 until 16){
+      key(i) = random.nextPrintableChar()
+    }
 
-import scala.concurrent.ExecutionContext.Implicits.global
+    return key.mkString("")
+  }
+  println(self.path.name)
+  var postTemp = new ConcurrentHashMap[String,(Array[Byte],Array[Byte])]
+  val keys:KeyPairGenerator = KeyPairGenerator.getInstance("RSA");
+  keys.initialize(1024);
+  val keypair:KeyPair = keys.generateKeyPair
+  val privateKey:PrivateKey = keypair.getPrivate;
+  val publicKey:PublicKey = keypair.getPublic;
+//println("public keys of "+userid+ " are "  + publicKey);
+ /* var key:String = SRNG().toString/*"Bar12345Bar12345";*/ // 16 byte key //should be changed
+ */ var initVector:String = "RandomInitVector"; // 16 byte IV
+
+  val password = "user"+userid.toString;
 
 
     def receive = {
-      case "high" => {
-        println(friendlist)
-       /*sys.scheduler.schedule(0 seconds, 3 seconds) ({val random = new Random()
-        val r = random.nextInt(friendlist.size-1)
-        println(friendlist(r))})*/
-
-        context.system.scheduler.schedule(0 seconds, 30 seconds) ({var result = pipeline(Get("http://localhost:8080/"+userid+"/profile"))
-          result.foreach { response =>
-            println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
-          }
-          result = pipeline(Get("http://localhost:8080/"+userid+"/wallposts"))
-          result.foreach { response =>
-            println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
-          }})
-
-        context.system.scheduler.schedule(0 seconds, 60 seconds) ({val random = new Random()
-          val r = random.nextInt(friendlist.size-1)
-          var result = pipeline(Get("http://localhost:8080/"+friendlist(r).toString +"/profile"))
-          result.foreach { response =>
-            println(s"Friends Profile!!!! Request completed with status ${response.status} and content: \n ${response.entity.asString}")
-          }
-
-          result = Get("http://localhost:8080/" + userid.toString + "/wallposts/" + friendlist(r).toString + "/addpost?post=Hello" + System.currentTimeMillis()) ~>sendReceive
-          result.foreach { response =>
-            println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
-          }})
-        /*context.system.scheduler.schedule(0 seconds, 200 seconds) ({val random = new Random()
-          val r = random.nextInt(pageMap.size-1)
-          var result = Get("http://localhost:8080/"+r.toString +"/page") ~> sendReceive
-          result.foreach { response =>
-            println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
-          }
-
-          result = Get("http://localhost:8080/" + userid.toString + "/page/addpost/" + userid + "?post=HelloPage" + System.currentTimeMillis()) ~>sendReceive
-          result.foreach { response =>
-            println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
-          }})*/
+      case "publickey" =>{
+  //      println(sender.path.name + "sends message to " + self.path.name)
+        sender ! publicKey
       }
+
+      case addPost(encrypt:Array[Byte], encryptKey:Array[Byte]) =>{
+        postTemp.put(postTemp.size().toString,(encrypt,encryptKey))
+        sender !"Post added"
+      }
+
       case "low" => {
-        context.system.scheduler.schedule(0 seconds, 200 seconds) ({var result = Get("http://localhost:8080/"+userid+"/profile") ~> sendReceive
+        context.system.scheduler.schedule(0 seconds, 20 seconds) ({var result = Get("http://localhost:8080/"+userid+"/profile") ~> sendReceive
           result.foreach { response =>
             println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
           }
       })
-        context.system.scheduler.schedule(0 seconds, 400 seconds) ({val random = new Random()
+        context.system.scheduler.schedule(0 seconds, 30 seconds) ({val random = new Random()
           val r = random.nextInt(friendlist.size-1)
           var result = Get("http://localhost:8080/"+friendlist(r).toString +"/profile") ~> sendReceive
           result.foreach { response =>
             println(s"Friends Profile!!!! Request completed with status ${response.status} and content: \n ${response.entity.asString}")
           }})
-          }
 
-      case "medium" => {
-        context.system.scheduler.schedule(0 seconds, 90 seconds) ({var result = Get("http://localhost:8080/"+userid+"/profile") ~> sendReceive
-          result.foreach { response =>
-            println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+        context.system.scheduler.schedule(0 seconds, 30 seconds) ({
+          //println(" size of post temp " + postTemp.size() + "  post  " + postTemp)
+          if( postTemp.size() >0){
+            for(i <- 0 until postTemp.size()){
+              //println("Post passed  = " + postTemp.get(i.toString))
+              //decryptAES(key, initVector,postTemp.get(i.toString))
+              var decryptKey:Array[Byte] = decrypt(postTemp.get(i.toString)._2,privateKey)
+              var key:String = new String( decryptKey, "UTF-8")
+              println( " AES key of post id "+ i + " is " + key)
+              var decrpytPost:Array[Byte] = postTemp.get(i.toString)._1
+              println( " string back at"+i.toString +new String( decryptAES(key, initVector,decrpytPost), "UTF-8"))
+            }
           }
-          result = Get("http://localhost:8080/"+userid+"/wallposts") ~> sendReceive
+          var result = pipeline(Get("http://localhost:8080/"+userid+"/wallposts"))
           result.foreach { response =>
+            var size = (response.entity.asString.replaceAll("[^0-9]", ""))
+            //println(" user mapee  size " + size)
+            //var mapee = new ConcurrentHashMap[String,String]
+            //mapee = (userProfileMap.get(userid).wall.posts)
             println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
           }})
 
-        context.system.scheduler.schedule(0 seconds, 150 seconds) ({val random = new Random()
+        context.system.scheduler.schedule(0 seconds, 20 seconds) ({val random = new Random()
           val r = random.nextInt(friendlist.size-1)
-          var result = Get("http://localhost:8080/"+friendlist(r).toString +"/profile") ~> sendReceive
-          result.foreach { response =>
-            println(s"Friends Profile!!!! Request completed with status ${response.status} and content: \n ${response.entity.asString}")
-          }
+          val friendid = friendlist(r)
+          var postMsg:Array[Byte] = ("Hello"+userid.toString).getBytes("UTF-8")
+          var key:String = SRNG().toString
+          println( " key for post is " + key)
+          var encryptedwithAES:Array[Byte] = encryptAES(key, initVector, postMsg);
+          implicit val timeout = Timeout (5 seconds)
+          val future = context.actorSelection("../activeuser"+friendid.toString) ? "publickey"
+          val friendPublicKey = Await.result(future, timeout.duration).asInstanceOf[PublicKey]
+          //println("PUBLIC KEY OF FRIEND " + friendid + " IS " + friendPublicKey )
+          //println("PUBLIC KEY OF USER IS " + publicKey )
 
-          result = Get("http://localhost:8080/" + userid.toString + "/wallposts/" + friendlist(r).toString + "/addpost?post=Hello" + System.currentTimeMillis()) ~>sendReceive
+          var encryptedKey:Array[Byte] = encrypt(key.getBytes("UTF-8"),friendPublicKey)
+          val futurefriend = context.actorSelection("../activeuser"+friendid.toString) ? addPost(encryptedwithAES,encryptedKey)
+          val friendPost = Await.result(futurefriend, timeout.duration).asInstanceOf[String]
+          var result = Get("http://localhost:8080/" + userid.toString + "/wallposts/" + friendid.toString + s"/addpost?index=${postTemp.size().toString}&post=${encryptedwithAES.toString}") ~>sendReceive
           result.foreach { response =>
+            var size = (response.entity.asString.replaceAll("[^0-9]", ""))
+            var intSize = 0
+            if(size == ""){
+              println(" added post size " + size)
+              intSize = 0
+            }
+            else{
+              println(" added post size " + size)
+              intSize =  postTemp.size()
+              //postTemp.put((intSize).toString, "Hello" + System.currentTimeMillis())
+            }
+            //println(" my wall post " + postTemp)
+
             println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
           }})
+
+
       }
-    }
+
+
 }
 
+  def encrypt (text:Array[Byte], key1:PublicKey) : Array[Byte] = {
+    var cipherText: Array[Byte] = null
+    val cipher: Cipher = Cipher.getInstance("RSA")
+    cipher.init(Cipher.ENCRYPT_MODE, key1)
+    cipherText = cipher.doFinal(text);
+    //println(" encrypted text " + cipherText);
+    return cipherText;
+  }
+
+  def decrypt (text:Array[Byte], key2:PrivateKey) : Array[Byte] = {
+    //println("Text is " + text)
+    var cipherText:Array[Byte] = null
+    val cipher:Cipher = Cipher.getInstance("RSA")
+    cipher.init(Cipher.DECRYPT_MODE,key2)
+    cipherText = cipher.doFinal(text);
+
+    return (cipherText)
+  }
+
+  def encryptAES(key:String, initVector:String , value:Array[Byte]):Array[Byte] = {
+    var iv:IvParameterSpec = new IvParameterSpec(initVector.getBytes("UTF-8"));
+    var skeySpec:SecretKeySpec = new SecretKeySpec(key.getBytes("UTF-8"), "AES");
+    var cipher:Cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
+    cipher.init(Cipher.ENCRYPT_MODE, skeySpec, iv);
+    return cipher.doFinal(value);
+  }
+
+  def decryptAES(key:String , initVector: String , encrypted:Array[Byte]):Array[Byte] = {
+    var iv:IvParameterSpec  = new IvParameterSpec(initVector.getBytes("UTF-8"));
+    var skeySpec:SecretKeySpec = new SecretKeySpec(key.getBytes("UTF-8"), "AES");
+    var cipher:Cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
+    cipher.init(Cipher.DECRYPT_MODE, skeySpec, iv);
+    return cipher.doFinal(encrypted);
+  }
+
+}
+
+
 trait FbApi extends HttpService with DefaultJsonProtocol{
-  case class UserProfile(userid: Int, name: String, age: Int, dob: Int, wall: FbPost, picture: String,  var albumid: List[Int])
+ /* case class UserProfile(userid: Int, name: String, age: Int, dob: Int, wall: FbPost, picture: String,  var albumid: List[Int])
   case class ProfilePic(pic: File)
   case class FacebookFriends(var friendList: List[Int])
   case class FbPage(pageid: Int, name: String, admin: Int, var subscribers: List[Int], wall: FbPost)
-  case class FbPost(var posts: Map[String, String])
+  case class FbPost(var posts: ConcurrentHashMap[String, String])
   case class Album(photos: List[String])
   implicit def executionContext = actorRefFactory.dispatcher
 
-  object fbFormat extends DefaultJsonProtocol {
+  /*object fbFormat extends DefaultJsonProtocol {
     implicit val fbPostFormat = jsonFormat1(FbPost.apply)
     implicit val userProfileFormat = jsonFormat7(UserProfile.apply)
     implicit val facebookFriendsFormat = jsonFormat1(FacebookFriends.apply)
     implicit val albumFormat = jsonFormat1(Album.apply)
   }
-
+*/
   var userProfileMap = new ConcurrentHashMap[Int, UserProfile]
   var friendMap = new ConcurrentHashMap[Int, FacebookFriends]
   var pageMap = new ConcurrentHashMap[Int, FbPage]
   var albumMap = new ConcurrentHashMap[Int, Album]
+  var publicKeyMap = new ConcurrentHashMap[Int,PublicKey]
+  var privateKeyMap = new ConcurrentHashMap[Int,PrivateKey]
+
 
   //create 10,000 users
-  for (i <- 0 until 100) {
-    val initialPost = FbPost(Map())
-    initialPost.posts += (0.toString() -> "Hello")
+  for (i <- 0 to 10) {
+
+
+    val initialPost = FbPost(new ConcurrentHashMap())
+    //initialPost.posts += (0.toString() -> "Hello")
+    initialPost.posts.put(0.toString,"hi11")
+
+    initialPost.posts.put(0.toString,"hi33")
 
     //ProfilePic(File.createTempFile("profilepic", ".jpg", new File("C:\\Users\\Pratyoush\\Desktop\\tmp")));
-    val ftmp = File.createTempFile("upload", ".jpg", new File("C:\\Users\\Pratyoush\\Desktop\\tmp"));
+    val ftmp = File.createTempFile("upload", ".jpg", new File("C:\\Users\\Prakriti\\Desktop\\tmp"));
     userProfileMap.put(i, UserProfile(i, "UserProfile" + i.toString, i, i + 10, initialPost, ftmp.getAbsolutePath,
       List[Int]() ))
     friendMap.put(i, FacebookFriends(List()))
   }
 
-  for(i <- 0 until 10){
+  /*for(i <- 0 until 100){
     val random = new Random()
     val r = random.nextInt(100)  // admin id
     val p = random.nextInt(20)  //number of subscribers
@@ -187,12 +283,12 @@ trait FbApi extends HttpService with DefaultJsonProtocol{
     val initialPost = FbPost(Map())
     initialPost.posts.updated(0.toString,"")
     pageMap.put(i, FbPage(i, "Page"+i.toString()+ ": admin "+userProfileMap.get(r).userid, userProfileMap.get(r).userid, subscribers, initialPost ))
-  }
-  for (i <- 0 until 100) {
+  }*/
+  for (i <- 0 to 10) {
     val random = new Random()
     val r = random.nextInt(10) //number of friends
     for (j <- 0 to r) {
-      val u = random.nextInt(99) //pick a random user
+      val u = random.nextInt(9) //pick a random user
       val user = userProfileMap.get(u).userid
       if (!friendMap.contains(user)) {
         friendMap.get(i).friendList = user :: friendMap.get(i).friendList//add the random user to i's friendlist
@@ -238,4 +334,4 @@ trait FbApi extends HttpService with DefaultJsonProtocol{
       }
     }*/
   println("Ready!")
-}
+*/}
