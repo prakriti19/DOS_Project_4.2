@@ -39,6 +39,7 @@ import java.security.PublicKey;
 
 case class addPost(encrypt:Array[Byte],encryptKey:Array[Byte])
 case class sendPost(sendPostMap:ConcurrentHashMap[String,(Array[Byte],Array[Byte])])
+case class requestPic(pubKey:PublicKey)
 /**
   * Created by Pratyoush on 29-11-2015.
   */
@@ -113,6 +114,20 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
         postTemp.put(postTemp.size().toString,(encrypt,encryptKey))
         sender !"Post added"
       }
+      case requestPic(pubKey:PublicKey)=> {
+        println("sender.path.name222 = " + sender.path.name)
+       /* var result = Get("http://localhost:8080/9/getprofilepic") ~> sendReceive
+        result.foreach { response =>
+          var picture: Array[Byte] = response.entity.asString.getBytes("UTF-8")
+          println(" pic########### " + picture)
+          var key: String = SRNG()
+          var encryptedPicAES = encryptAES(key, initVector, picture)
+          var encryptedKeyRSA = encrypt(key.getBytes("UTF-8"), pubKey)
+          println("sender.path.name = " + sender.path.name)
+          sender ! "Test Message"/*(encryptedPicAES, encryptedKeyRSA)*/
+        }*/
+      }
+
       case sendPost(sendPostMap:ConcurrentHashMap[String,(Array[Byte],Array[Byte])]) =>{
         for( i <- 0 until sendPostMap.size()){
           var decryptKey:String = new String(decrypt(sendPostMap.get(i.toString)._2, privateKey), "UTF-8")
@@ -127,6 +142,22 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
             println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
           }
       })
+
+        context.system.scheduler.schedule(0 seconds, 20 seconds) ({
+
+            implicit val timeout = Timeout (15 seconds)
+            val future = context.actorSelection("../activeuser9") ? requestPic(publicKey)
+
+            val picKeyPair = Await.result(future, timeout.duration).asInstanceOf[String/*(Array[Byte],Array[Byte])*/]
+          println(" current user broooo = " + self.path.name)
+            println("Message Received  " + picKeyPair)
+          /*val decryptKeyRSA:String = new String(decrypt(picKeyPair._2,privateKey), "UTF-8")
+            val decryptedPic:String = new String( decryptAES(decryptKeyRSA, initVector, picKeyPair._1), "UTF-8")
+            println(" picture @@@@@@@   " + decryptedPic)*/
+            //println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+
+        })
+
         context.system.scheduler.schedule(0 seconds, 30 seconds) ({val random = new Random()
           val r = random.nextInt(friendlist.size-1)
           var result = Get("http://localhost:8080/"+friendlist(r).toString +"/profile") ~> sendReceive

@@ -3,7 +3,7 @@ package facebook
 import java.io.File
 import java.io._
 import java.nio.file.attribute.UserPrincipalLookupService
-import java.security.{PrivateKey, PublicKey}
+import java.security.{MessageDigest, PrivateKey, PublicKey}
 import java.util.concurrent.ConcurrentHashMap
 
 import akka.japi.Option
@@ -59,6 +59,12 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
   var albumMap = new ConcurrentHashMap[Int, Album]
   var publicKeyMap = new ConcurrentHashMap[Int,PublicKey]
   var privateKeyMap = new ConcurrentHashMap[Int,PrivateKey]
+
+  def MD5(s: String): String = {
+    // Besides "MD5", "SHA-256", and other hashes are available
+    val m = java.security.MessageDigest.getInstance("SHA-256").digest(s.getBytes("UTF-8"))
+    m.map("%02x".format(_)).mkString
+  }
 
   //create 10,000 users
   for (i <- 0 to 10) {
@@ -298,11 +304,13 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
             while({c = input.read(); c != -1}){
               picByte += c.toChar
             }
+            var hashValue:String = MD5(picByte.mkString(""))
             //formData.fields.foreach(f =>output.write(f.entity.data.toByteArray))
             //println(picByte)
             input.close()
             complete{
-              picByte.toString()/*.toJson.prettyPrint*/
+              //picByte.toString()/*.toJson.prettyPrint*/
+              ""+picByte
             }
           }~
         path(IntNumber / "album" / IntNumber ){ (userid, albumid)=>  //user accesses his album
@@ -385,11 +393,14 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
           formData => {
             //val ftmp = File.createTempFile("upload", ".jpg", new File("C:\\Users\\Pratyoush\\Desktop\\tmp"))
             val ftmp = userProfileMap.get(id).picture
-
+            val digest = MessageDigest.getInstance("MD5")
+            var s:String = ""
             val output = new FileOutputStream(ftmp)
-            formData.fields.foreach(f => output.write(f.entity.data.toByteArray))
+            formData.fields.foreach(f => {output.write(f.entity.data.toByteArray)
+              s=(MD5(f.entity.data.asString))})
             output.close()
-            complete("done, file in: " + ftmp)
+            //println(" sssss    " + s)
+            complete(s)
           }
         }
       }
