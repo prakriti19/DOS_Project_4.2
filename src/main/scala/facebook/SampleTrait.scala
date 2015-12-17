@@ -3,11 +3,15 @@ package facebook
 import java.io.File
 import java.io._
 import java.nio.file.attribute.UserPrincipalLookupService
-import java.security.{MessageDigest, PrivateKey, PublicKey}
+import java.security.spec.X509EncodedKeySpec
+import java.security.{KeyFactory, MessageDigest, PrivateKey, PublicKey}
 import java.util.concurrent.ConcurrentHashMap
 
 import akka.japi.Option
 import facebook.client.FbApi
+import org.apache.commons.codec.binary.Base64
+//import sun.security.ssl.KeyManagerFactoryImpl.X509
+
 /*
 import facebook.client.FbApi.FacebookFriends
 import facebook.client.FbApi.FbPost
@@ -42,7 +46,7 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
   case class ProfilePic(pic: File)
   case class FacebookFriends(var friendList: List[Int])
   case class FbPage(pageid: Int, name: String, admin: Int, var subscribers: List[Int], wall: FbPost)
-  case class FbPost(var posts: ConcurrentHashMap[String, String])
+  case class FbPost(var posts: ConcurrentHashMap[String, (String, String)])
   case class Album(photos: List[String])
   implicit def executionContext = actorRefFactory.dispatcher
 
@@ -57,8 +61,7 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
   var friendMap = new ConcurrentHashMap[Int, FacebookFriends]
   var pageMap = new ConcurrentHashMap[Int, FbPage]
   var albumMap = new ConcurrentHashMap[Int, Album]
-  var publicKeyMap = new ConcurrentHashMap[Int,PublicKey]
-  var privateKeyMap = new ConcurrentHashMap[Int,PrivateKey]
+  var publicKeyMap = new ConcurrentHashMap[Int, PublicKey]
 
   def MD5(s: String): String = {
     // Besides "MD5", "SHA-256", and other hashes are available
@@ -162,6 +165,15 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
   val sampleRoute = {
     get {
       //respondWithMediaType(MediaTypes.`application/json`) {
+      path(IntNumber / "register") { id =>
+        parameters("publicKey".as[String]) { publicKey =>
+          var pubKey: PublicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(Base64.decodeBase64(publicKey)))
+          publicKeyMap.put(id, pubKey)
+          complete {
+            "with id $id" /*+ res.toJson.prettyPrint*/
+          }
+        }
+      }~
       path(IntNumber / "user" / IntNumber / "addfriend"){ (userid, friendid) =>   //userid wants to add friendid
         if(friendid >= userProfileMap.size()){
           complete{
@@ -253,18 +265,18 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
         }
       }~
         path(IntNumber / "wallposts") { id =>
-           var res = userProfileMap.get(id).wall.posts.size()
+           var res = userProfileMap.get(id).wall.posts
 
           complete {
-            "with id $id length" + res/*.toJson.prettyPrint*/
+            "" + res.values()/*.toJson.prettyPrint*/
           }
         } ~
         path(IntNumber / "wallposts" / IntNumber / "addpost" ) { (userid, friendid) =>    //friendid posts on userid
-          parameters("index".as[String], "post".as[String]) { (index,post) =>
+          parameters("post".as[String], "key".as[String]) { (post,key) =>
             if(friendMap.get(userid).friendList.contains(friendid)){
               val size = userProfileMap.get(friendid).wall.posts.size
               //userProfileMap.get(friendid).wall.posts += (size.toString() -> post)
-              userProfileMap.get(friendid).wall.posts.put(index, post)
+              userProfileMap.get(friendid).wall.posts.put(size.toString, (post,key))
               complete {
                 "\nadded a post"+" length"+userProfileMap.get(friendid).wall.posts.size()
               }
@@ -348,7 +360,7 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
             if(userid == pageMap.get(pageid).admin || pageMap.get(pageid).subscribers.contains(userid)){
               val size = pageMap.get(pageid).wall.posts.size
               //pageMap.get(pageid).wall.posts += (size.toString() -> post)
-              pageMap.get(pageid).wall.posts.put(size.toString(), post)
+              //pageMap.get(pageid).wall.posts.put(size.toString(), post)
               complete{
                 "Post Added by "+ userid + "\nPost : " + post
               }

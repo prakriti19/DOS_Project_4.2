@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.crypto.spec.{SecretKeySpec, IvParameterSpec}
 
 import akka.actor._
+import org.apache.commons.codec.binary.Base64
 
 import scala.concurrent.Await
 import akka.pattern.ask
@@ -38,7 +39,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 
 case class addPost(encrypt:Array[Byte],encryptKey:Array[Byte])
-case class sendPost(sendPostMap:ConcurrentHashMap[String,(Array[Byte],Array[Byte])])
+case class sendPost(sendPostMap:ConcurrentHashMap[Int,(String,String)], pubKey:PublicKey)
 case class requestPic(pubKey:PublicKey)
 /**
   * Created by Pratyoush on 29-11-2015.
@@ -127,15 +128,24 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
           sender ! "Test Message"/*(encryptedPicAES, encryptedKeyRSA)*/
         }*/
       }
-
-      case sendPost(sendPostMap:ConcurrentHashMap[String,(Array[Byte],Array[Byte])]) =>{
+      case sendPost(sendPostMap:ConcurrentHashMap[Int,(String, String)], pubKey:PublicKey) =>{
+        var returnVal:ConcurrentHashMap[Int,(String,String)] = new ConcurrentHashMap[Int,(String,String)]()
+        for( i <- 0 until sendPostMap.size()){
+          var key = decrypt(Base64.decodeBase64(sendPostMap.get(i)._2),privateKey)
+         // var posts = decryptAES(new String(key, "UTF-8"),initVector,Base64.decodeBase64(mapOfRow.get(i)._1) )
+          var key2: String= Base64.encodeBase64String(encrypt(key,pubKey))
+          returnVal.put(i, (sendPostMap.get(i)._1, key2))
+        }
+        sender ! returnVal
+      }
+      /*case sendPost(sendPostMap:ConcurrentHashMap[String,(Array[Byte],Array[Byte])]) =>{
         for( i <- 0 until sendPostMap.size()){
           var decryptKey:String = new String(decrypt(sendPostMap.get(i.toString)._2, privateKey), "UTF-8")
           var decryptPost:Array[Byte] = decryptAES(decryptKey, initVector, sendPostMap.get(i.toString)._1)
           println( " friend's wall post "+ i.toString + " is " + new String(decryptPost,"UTF-8"))
         }
         sender !"successful"
-      }
+      }*/
       case "low" => {
         context.system.scheduler.schedule(0 seconds, 20 seconds) ({var result = Get("http://localhost:8080/"+userid+"/profile") ~> sendReceive
           result.foreach { response =>
@@ -143,7 +153,7 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
           }
       })
 
-        context.system.scheduler.schedule(0 seconds, 20 seconds) ({
+       /* context.system.scheduler.schedule(0 seconds, 20 seconds) ({
 
             implicit val timeout = Timeout (15 seconds)
             val future = context.actorSelection("../activeuser9") ? requestPic(publicKey)
@@ -157,6 +167,11 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
             //println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
 
         })
+*/
+       var result = Get("http://localhost:8080/"+userid.toString +s"/register?publickey=${Base64.encodeBase64String(publicKey.getEncoded)}") ~> sendReceive
+          result.foreach { response =>
+            println(s"Friends Profile!!!! Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+          }
 
         context.system.scheduler.schedule(0 seconds, 30 seconds) ({val random = new Random()
           val r = random.nextInt(friendlist.size-1)
@@ -165,31 +180,77 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
             println(s"Friends Profile!!!! Request completed with status ${response.status} and content: \n ${response.entity.asString}")
           }})
 
+
         context.system.scheduler.schedule(0 seconds, 30 seconds) ({
-          //println(" size of post temp " + postTemp.size() + "  post  " + postTemp)
-          if( postTemp.size() >0){
-            for(i <- 0 until postTemp.size()){
-              //println("Post passed  = " + postTemp.get(i.toString))
-              //decryptAES(key, initVector,postTemp.get(i.toString))
-              var decryptKey:Array[Byte] = decrypt(postTemp.get(i.toString)._2,privateKey)
-              var key:String = new String( decryptKey, "UTF-8")
-              println( " AES key of post id "+ i + " is " + key)
-              var decrpytPost:Array[Byte] = postTemp.get(i.toString)._1
-              println( " string back at"+i.toString +new String( decryptAES(key, initVector,decrpytPost), "UTF-8"))
-            }
-          }
           var result = pipeline(Get("http://localhost:8080/"+userid+"/wallposts"))
           result.foreach { response =>
-            var size = (response.entity.asString.replaceAll("[^0-9]", ""))
-            //println(" user mapee  size " + size)
-            //var mapee = new ConcurrentHashMap[String,String]
-            //mapee = (userProfileMap.get(userid).wall.posts)
-            println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+            var postMapnew = response.entity.asString
+            var row = postMapnew.split("\\), \\(")
+            var mapOfRow:ConcurrentHashMap[Int,(String,String)] = new ConcurrentHashMap[Int,(String,String)]()
+            println("\nRow Length = " + row.length + "\n")
+            if(row.length >0){
+             for(i <- 0 until row.length){
+               row(i) = row(i).replaceFirst("\\[\\(","")
+               row(i) = row(i).replaceFirst("\\)\\]","")
+               var parts:Array[String] = row(i).split(",")
+               parts(0) = parts(0).replaceAll("_","=")
+               parts(1) = parts(1).replaceAll("_","=") // error for part 1
+               parts(0) = parts(0).replaceAll(" ","+")
+               parts(1) = parts(1).replaceAll(" ","+")
+               mapOfRow.put(i,(parts(0),parts(1)))
+             }
+           }
+            if(mapOfRow.size() >0){
+              for( i <- 0 until mapOfRow.size()){
+                var key = decrypt(Base64.decodeBase64(mapOfRow.get(i)._2),privateKey)
+                var posts = decryptAES(new String(key, "UTF-8"),initVector,Base64.decodeBase64(mapOfRow.get(i)._1) )
+                println( " decrypted post should come " + new String(posts, "UTF-8"))
+              }
+            }
+
+            println(s"Request completed with status ${response.status}")
+          }})
+        context.system.scheduler.schedule(0 seconds, 30 seconds) ({
+          val random = new Random()
+          val r = random.nextInt(friendlist.size-1)
+          val friendid = friendlist(r)
+          var result = pipeline(Get("http://localhost:8080/"+friendid+"/wallposts"))
+          result.foreach { response =>
+            var postMapnew = response.entity.asString
+            var row = postMapnew.split("\\), \\(")
+            var mapOfRow:ConcurrentHashMap[Int,(String,String)] = new ConcurrentHashMap[Int,(String,String)]()
+            println("\nRow Length = " + row.length + "\n")
+            if(row.length >0){
+              for(i <- 0 until row.length){
+                row(i) = row(i).replaceFirst("\\[\\(","")
+                row(i) = row(i).replaceFirst("\\)\\]","")
+                var parts:Array[String] = row(i).split(",")
+                parts(0) = parts(0).replaceAll("_","=")
+                parts(1) = parts(1).replaceAll("_","=") // error for part 1
+                parts(0) = parts(0).replaceAll(" ","+")
+                parts(1) = parts(1).replaceAll(" ","+")
+                mapOfRow.put(i,(parts(0),parts(1)))
+              }
+            }
+
+            implicit val timeout = Timeout (5 seconds)
+            val future = context.actorSelection("../activeuser"+friendid.toString) ? sendPost(mapOfRow, publicKey)
+            val friendPost = Await.result(future, timeout.duration).asInstanceOf[ConcurrentHashMap[Int,(String,String)]]
+
+            if(friendPost.size() >0){
+              for( i <- 0 until friendPost.size()){
+                var key = decrypt(Base64.decodeBase64(friendPost.get(i)._2),privateKey)
+                var posts = decryptAES(new String(key, "UTF-8"),initVector,Base64.decodeBase64(friendPost.get(i)._1) )
+                println( " decrypted FRIEND's post should come " + new String(posts, "UTF-8"))
+              }
+            }
+
+            println(s"Request completed with status ${response.status}")
           }})
 
 
         //request for friends posts
-        context.system.scheduler.schedule(0 seconds, 30 seconds) ({
+       /* context.system.scheduler.schedule(0 seconds, 30 seconds) ({
           val random = new Random()
           val r = random.nextInt(friendlist.size-1)
           val friendid = friendlist(r)
@@ -219,28 +280,31 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
             //var mapee = new ConcurrentHashMap[String,String]
             //mapee = (userProfileMap.get(userid).wall.posts)
             println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
-          }*/})
+          }*/})*/
 
 
         context.system.scheduler.schedule(0 seconds, 20 seconds) ({val random = new Random()
           val r = random.nextInt(friendlist.size-1)
           val friendid = friendlist(r)
           var postMsg:Array[Byte] = ("Hello"+userid.toString).getBytes("UTF-8")
-          var key:String = SRNG().toString
-          println( " key for post is " + key)
+          var key:String = SRNG()
           var encryptedwithAES:Array[Byte] = encryptAES(key, initVector, postMsg);
           implicit val timeout = Timeout (5 seconds)
           val future = context.actorSelection("../activeuser"+friendid.toString) ? "publickey"
           val friendPublicKey = Await.result(future, timeout.duration).asInstanceOf[PublicKey]
-          //println("PUBLIC KEY OF FRIEND " + friendid + " IS " + friendPublicKey )
-          //println("PUBLIC KEY OF USER IS " + publicKey )
 
           var encryptedKey:Array[Byte] = encrypt(key.getBytes("UTF-8"),friendPublicKey)
-          val futurefriend = context.actorSelection("../activeuser"+friendid.toString) ? addPost(encryptedwithAES,encryptedKey)
-          val friendPost = Await.result(futurefriend, timeout.duration).asInstanceOf[String]
-          var result = Get("http://localhost:8080/" + userid.toString + "/wallposts/" + friendid.toString + s"/addpost?index=${postTemp.size().toString}&post=${encryptedwithAES.toString}") ~>sendReceive
+          var encryptedString64 = Base64.encodeBase64String(encryptedwithAES)
+          var encryptedKey64 = Base64.encodeBase64String(encryptedKey)
+          encryptedString64 = encryptedString64.replaceAll("=", "_")
+          encryptedKey64 = encryptedKey64.replaceAll("=", "_")
+
+         // println( " encryptedString64 is  " + encryptedString64 + "  encryptedKey64 is  "+ encryptedKey64)
+          //val futurefriend = context.actorSelection("../activeuser"+friendid.toString) ? addPost(encryptedwithAES,encryptedKey)
+          //val friendPost = Await.result(futurefriend, timeout.duration).asInstanceOf[String]
+          var result = Get("http://localhost:8080/" + userid.toString + "/wallposts/" + friendid.toString + s"/addpost?post=${encryptedString64}&key=${encryptedKey64}") ~>sendReceive
           result.foreach { response =>
-            var size = (response.entity.asString.replaceAll("[^0-9]", ""))
+            /*var size = (response.entity.asString.replaceAll("[^0-9]", ""))
             var intSize = 0
             if(size == ""){
               println(" added post size " + size)
@@ -250,7 +314,7 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
               println(" added post size " + size)
               intSize =  postTemp.size()
               //postTemp.put((intSize).toString, "Hello" + System.currentTimeMillis())
-            }
+            }*/
             //println(" my wall post " + postTemp)
 
             println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")

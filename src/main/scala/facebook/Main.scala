@@ -38,6 +38,16 @@ object Main extends App{
   IO(Http) ! Http.Bind(service, "localhost", port = 8080)
   //system.shutdown()
 
+  var string = "hello"
+println(string.getBytes("UTF-8"))
+  var stringbyte =string.getBytes("UTF-8")
+  val s = Base64.encodeBase64String(stringbyte)
+  println( s)
+  println(new String(Base64.decodeBase64(s), "UTF-8"))
+
+  //string -> convertedtobytes -> encodebase64 -> decodebase64 -> newstring
+
+ //println(new String(stringbyte, "UTF-8"))
 
 
 
@@ -225,9 +235,9 @@ object Main extends App{
 
     return key.mkString("")
   }
-  for( i <- 0 to 5)
+  /*for( i <- 0 to 5)
   println( " key is " + SRNG())
-}
+*/}
 
 
 
