@@ -37,7 +37,7 @@ class Master extends Actor with SampleTrait{
   override implicit def actorRefFactory: ActorRefFactory = sys
   val pipeline = sendReceive
     def receive = {
-      case "create" => println("Inside Master")
+      case "create" => //println("Inside Master")
       /*  for(i<- 0 to 24){
           val friendlist = friendMap.get(i).friendList
           val hashMap = pageMap
@@ -105,10 +105,10 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
 
       case sendPost(sendPostMap:ConcurrentHashMap[Int,(String, String)], pubKey:PublicKey) =>{
         var returnVal:ConcurrentHashMap[Int,(String,String)] = new ConcurrentHashMap[Int,(String,String)]()
-        println ( " sendPostMap size " +sendPostMap.size())
+        //println ( " sendPostMap size " +sendPostMap.size())
         for( i <- 0 until sendPostMap.size()){
-          println("sendPostMap.get(i)._2  " + i  +"  "+sendPostMap.get(i)._2)
-          println("sendPostMap.get(i)._2  " + i  +"  "+Base64.decodeBase64(sendPostMap.get(i)._2))
+          //println("sendPostMap.get(i)._2  " + i  +"  "+sendPostMap.get(i)._2)
+          //println("sendPostMap.get(i)._2  " + i  +"  "+Base64.decodeBase64(sendPostMap.get(i)._2))
 
           var key = decrypt(Base64.decodeBase64(sendPostMap.get(i)._2),privateKey)
          // var posts = decryptAES(new String(key, "UTF-8"),initVector,Base64.decodeBase64(mapOfRow.get(i)._1) )
@@ -125,7 +125,7 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
          val registerResult = Get("http://localhost:8080/"+userid.toString +s"/register?publickey=${encodedPublicKey}") ~> sendReceive
           registerResult.foreach { response =>
             //println(" public key at fb client is " + publicKey+ " for user "+ userid)
-            println(s"User Registered!!!! Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+            println(s"User Registered: " + self.path.name/* and content: \n ${response.entity.asString}*/)
           }
 
         val loginResult = Get("http://localhost:8080/"+userid.toString +"/login") ~> sendReceive
@@ -138,7 +138,7 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
               loginStatus = response.entity.asString
             //println(" before print " + loginStatus + " boolean " + loginStatus.equalsIgnoreCase("loginsuccessful"))
           }
-          println(s"User Login!!!! Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+          println(s"User Login: " + self.path.name /*and content: \n ${response.entity.asString}*/)
         }
 
         Thread.sleep(10000L)
@@ -146,10 +146,10 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
         //rest of the activities
 
         if(loginStatus.equalsIgnoreCase("loginsuccessful")) {
-        println("Inside Login")
+        //println("Inside Login")
           context.system.scheduler.schedule(0 seconds, 20 seconds) ({var result = Get("http://localhost:8080/"+userid+"/profile") ~> sendReceive
             result.foreach { response =>
-              println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+              println(s"Profile \n " + response.entity.asString)
             }
           })
           context.system.scheduler.schedule(0 seconds, 30 seconds)({
@@ -157,7 +157,7 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
             val r = random.nextInt(friendlist.size - 1)
             var result = Get("http://localhost:8080/" + friendlist(r).toString + "/profile") ~> sendReceive
             result.foreach { response =>
-              println(s"Friends Profile!!!! Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+              println(s"Friends Profile: " + response.entity.asString)
             }
           })
 
@@ -168,13 +168,11 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
               var getData = response.entity.asString
               var getPicKeyPair = getData.split("\\),\\(")
               var decodedKey = Base64.decodeBase64(getPicKeyPair(1))
-              println(" decode key " + getPicKeyPair(1))
               if( !getPicKeyPair(1).toString.equals("key")){
                 var key = new String((decrypt(decodedKey,privateKey)), "UTF-8")
                 var decodedPicture = Base64.decodeBase64(getPicKeyPair(0))
                 var decryptedPicture = decryptAES(key, initVector, decodedPicture)
-                println(" 0   pic########### "+ userid+ " key " + key)
-                println(" 1   pic########### " + new String(decryptedPicture, "UTF-8"))
+                println(" Picture " + new String(decryptedPicture, "UTF-8"))
               }
               }
             }
@@ -186,44 +184,38 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
               var postMapnew = response.entity.asString
               var row = postMapnew.split("\\), \\(")
               var mapOfRow: ConcurrentHashMap[Int, (String, String)] = new ConcurrentHashMap[Int, (String, String)]()
-              println("\nRow Length = " + row.length + "\n")
+              //println("\nRow Length = " + row.length + "\n")
               if (row.length > 1) {
                 for (i <- 0 until row.length) {
                   row(i) = row(i).replaceFirst("\\[\\(", "")
                   row(i) = row(i).replaceFirst("\\)\\]", "")
-                  println( " row i "+ i + " " + row(i))
                   var parts: Array[String] = row(i).split(",")
-                  println( " parts length " + parts.length)
                   parts(0) = parts(0).replaceAll("_", "=")
                   parts(1) = parts(1).replaceAll("_", "=") // error for part 1
                   parts(0) = parts(0).replaceAll(" ", "+")
                   parts(1) = parts(1).replaceAll(" ", "+")
-                  println ( " part0 " +  parts(0) + " parts1 "+ parts(1) )
                   mapOfRow.put(i, (parts(0), parts(1)))
                 }
               }
-              case class post(var post:String)
-              var postMap: Map[String, post] = Map()
-              object mapJsonFormat extends DefaultJsonProtocol {
+              //case class post(var post:String)
+              var postMap: Map[String,String] = Map()
+              /*object mapJsonFormat extends DefaultJsonProtocol {
                 implicit val fbPostFormat = jsonFormat1(post.apply)
-              }
-              import mapJsonFormat._
+              }*/
+              //import mapJsonFormat._
               if (mapOfRow.size() > 1) {
                 for (i <- 0 until mapOfRow.size()) {
-                  println( " encoded key " + mapOfRow.get(i)._2)
-                  println( " decoded key " + Base64.decodeBase64(mapOfRow.get(i)._2) )
-                  println( " map of row at i "+ i + mapOfRow.get(i)._2)
                   var key = decrypt(Base64.decodeBase64(mapOfRow.get(i)._2), privateKey)
-                  println( " key here " + key)
+                  //println( " key here " + key)
                   var posts = decryptAES(new String(key, "UTF-8"), initVector, Base64.decodeBase64(mapOfRow.get(i)._1))
 
-                  postMap += (i.toString -> post(new String(posts, "UTF-8")))
-                  //println(" My Wall Posts!! " + new String(posts, "UTF-8"))
+                  postMap += (i.toString -> (new String(posts, "UTF-8")))
+
                 }
-                println ( " Wall!! " + postMap.toJson.prettyPrint)
+                println("Wall " + scala.util.parsing.json.JSONObject(postMap))
               }
 
-              println(s"Request completed with status ${response.status}")
+              //println(s"Request completed with status ${response.status}")
             }
           })
           context.system.scheduler.schedule(0 seconds, 30 seconds)({
@@ -238,18 +230,15 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
 
               var mapOfRow: ConcurrentHashMap[Int, (String, String)] = new ConcurrentHashMap[Int, (String, String)]()
 
-              //println("\nRow Length = " + row.length + "\n")
-
               if (row.length > 1) {
                 for (i <- 0 until row.length) {
                   row(i) = row(i).replaceFirst("\\[\\(", "")
                   row(i) = row(i).replaceFirst("\\)\\]", "")
                   var parts: Array[String] = row(i).split(",")
                   parts(0) = parts(0).replaceAll("_", "=")
-                  parts(1) = parts(1).replaceAll("_", "=") // error for part 1
+                  parts(1) = parts(1).replaceAll("_", "=")
                   parts(0) = parts(0).replaceAll(" ", "+")
                   parts(1) = parts(1).replaceAll(" ", "+")
-                  println ( " Parts0 friends " + parts(0) + " Parts1 friend" + parts(1))
                   mapOfRow.put(i, (parts(0), parts(1)))
                 }
               }
@@ -260,14 +249,19 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
               val friendPost = Await.result(future, timeout.duration).asInstanceOf[ConcurrentHashMap[Int, (String, String)]]
 
               if (friendPost.size() > 0) {
+                var postMap: Map[String, String] = Map()
                 for (i <- 0 until friendPost.size()) {
                   var key = decrypt(Base64.decodeBase64(friendPost.get(i)._2), privateKey) //226 error
                   var posts = decryptAES(new String(key, "UTF-8"), initVector, Base64.decodeBase64(friendPost.get(i)._1))
-                  println(" My Friends Wall Posts!! " + new String(posts, "UTF-8"))
-                }
-              }
 
-              println(s"Request completed with status ${response.status}")
+                  postMap += (i.toString->(new String(posts, "UTF-8")))
+                  //println(" My Friends Wall Posts!! " + new String(posts, "UTF-8"))
+                }
+                println("My Friends Wall! " + scala.util.parsing.json.JSONObject(postMap))
+
+               }
+
+              //println(s"Request completed with status ${response.status}")
             }
           })
 
@@ -281,7 +275,7 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
             implicit val timeout = Timeout(5 seconds)
             val future = context.actorSelection("../activeuser" + friendid.toString) ? "publickey" // asking for public key from actor
             val friendPublicKey = Await.result(future, timeout.duration).asInstanceOf[PublicKey]
-            println(" friend's public key " + friendPublicKey)
+            //println(" friend's public key " + friendPublicKey)
             var encryptedKey: Array[Byte] = encrypt(key.getBytes("UTF-8"), friendPublicKey)
             var encryptedString64 = Base64.encodeBase64String(encryptedwithAES)
             var encryptedKey64 = Base64.encodeBase64String(encryptedKey)
@@ -293,7 +287,7 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
             //val friendPost = Await.result(futurefriend, timeout.duration).asInstanceOf[String]
             var result = Get("http://localhost:8080/" + userid.toString + "/wallposts/" + friendid.toString + s"/addpost?post=${encryptedString64}&key=${encryptedKey64}") ~> sendReceive
             result.foreach { response =>
-              println(s"Request completed with status ${response.status} and content: \n ${response.entity.asString}")
+              println( response.entity.asString )
             }
           })
 

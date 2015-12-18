@@ -64,8 +64,8 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
     implicit val userProfileFormat = jsonFormat7(UserProfile.apply)
     implicit val facebookFriendsFormat = jsonFormat1(FacebookFriends.apply)
     implicit val albumFormat = jsonFormat1(Album.apply)
-  }
-*/
+  }*/
+
   def DSDecrypt(text: Array[Byte], key1: PublicKey): Array[Byte] = {
     var cipherText: Array[Byte] = null
     val cipher: Cipher = Cipher.getInstance("RSA")
@@ -90,7 +90,7 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
     val cipher: Cipher = Cipher.getInstance("RSA")
     cipher.init(Cipher.ENCRYPT_MODE, key1)
     cipherText = cipher.doFinal(text);
-    println(" encrypted text " + cipherText);
+    //println(" encrypted text " + cipherText);
     return cipherText;
   }
   var userProfileMap = new ConcurrentHashMap[Int, UserProfile]
@@ -203,10 +203,7 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
     }*/
   println("Ready!")
 
-
-
-  println("Ready!")
-  /*
+/*
   object fbFormat2 extends DefaultJsonProtocol {
     implicit val fbPostFormat = jsonFormat1(FbPost.apply)
     implicit val userProfileFormat = jsonFormat7(UserProfile.apply)
@@ -224,7 +221,7 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
           var decodedPublicKey = publicKey
           var pubKey: PublicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(Base64.decodeBase64(decodedPublicKey)))
           publicKeyMap.put(id, pubKey)
-          println(" public key at fb Server is " + pubKey + " for user " + id)
+          //println(" public key at fb Server is " + pubKey + " for user " + id)
           complete {
             "with id $id" /*+ res.toJson.prettyPrint*/
           }
@@ -240,7 +237,7 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
         path(IntNumber / "loginverify") { id =>
           parameters("es".as[String]) { es =>
             val decryptedSecureNum: String = new String(DSDecrypt(Base64.decodeBase64(es), publicKeyMap.get(id)), "UTF-8")
-            println(s" secureStringMap.get(${id})  " + secureStringMap.get(id) + "decryptedSecureNum.toLong  " + decryptedSecureNum.toLong)
+            //println(s" secureStringMap.get(${id})  " + secureStringMap.get(id) + "decryptedSecureNum.toLong  " + decryptedSecureNum.toLong)
             if (secureStringMap.get(id) == decryptedSecureNum.toLong) {
               complete {
                 "loginsuccessful" /*+ res.toJson.prettyPrint*/
@@ -301,11 +298,11 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
             } ~
             path(IntNumber / "profile" / "deleteprofile") { id =>
               val user = friendMap.get(id)
-              println(user.friendList.size)
+              //println(user.friendList.size)
               for (i <- 0 to (user.friendList.size - 1)) {
                 //few checks are to be added
                 val friendid = user.friendList(i)
-                println(friendid)
+                //println(friendid)
                 friendMap.get(friendid).friendList = friendMap.get(friendid).friendList diff List(id)
               }
               userProfileMap.remove(id)
@@ -358,12 +355,12 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
                   //userProfileMap.get(friendid).wall.posts += (size.toString() -> post)
                   userProfileMap.get(friendid).wall.posts.put(size.toString, (post, key))
                   complete {
-                    "\nadded a post" + " length" + userProfileMap.get(friendid).wall.posts.size()
+                    "\nadded a post"
                   }
                 }
                 else {
                   complete {
-                    "Not Allowed to Post!"
+                    ""
                   }
                 }
               }
@@ -497,10 +494,10 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
                  output.write(f.entity.data.toByteArray)})
 
                 val byteArray = Files.readAllBytes(Paths.get(ftmp))
-                println(ftmp +  "  this is the path")
+                //println(ftmp +  "  this is the path")
                 val encryptedByteArray = encryptAESServer(key, initVector1, byteArray)
                 val encodedByteArray = Base64.encodeBase64String(encryptedByteArray)
-                println("Picture Uploaded " + new String (byteArray, "UTF-8"))
+                //println("Picture Uploaded " + new String (byteArray, "UTF-8"))
 
                 val u1 = userProfileMap.get(id)
                 val u2 = u1.copy(picture =(encodedByteArray,encryptKey) )
