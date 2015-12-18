@@ -38,22 +38,36 @@ object Main extends App{
   IO(Http) ! Http.Bind(service, "localhost", port = 8080)
   //system.shutdown()
 
-  var string = "hello"
-println(string.getBytes("UTF-8"))
-  var stringbyte =string.getBytes("UTF-8")
-  val s = Base64.encodeBase64String(stringbyte)
-  println( s)
-  println(new String(Base64.decodeBase64(s), "UTF-8"))
+  val keys:KeyPairGenerator = KeyPairGenerator.getInstance("RSA");
+  keys.initialize(2048);
+  val keypair:KeyPair = keys.generateKeyPair
+  val privateKey:PrivateKey = keypair.getPrivate;
+  val publicKey:PublicKey = keypair.getPublic;
+  println("keys are " + privateKey + "   anddddd     " + publicKey);
 
-  //string -> convertedtobytes -> encodebase64 -> decodebase64 -> newstring
+  def DSEncrypt (text:Array[Byte], key1:PrivateKey) : Array[Byte] = {
+    var cipherText: Array[Byte] = null
+    val cipher: Cipher = Cipher.getInstance("RSA")
+    cipher.init(Cipher.ENCRYPT_MODE, key1)
+    cipherText = cipher.doFinal(text);
+    //println(" encrypted text " + cipherText);
+    return cipherText;
+  }
 
- //println(new String(stringbyte, "UTF-8"))
+  def DSDecrypt (text:Array[Byte], key1:PublicKey) : Array[Byte] = {
+    var cipherText: Array[Byte] = null
+    val cipher: Cipher = Cipher.getInstance("RSA")
+    cipher.init(Cipher.DECRYPT_MODE, key1)
+    cipherText = cipher.doFinal(text);
+    //println(" encrypted text " + cipherText);
+    return cipherText;
+  }
 
-
-
-
-
-/*
+  val  message:Array[Byte] = "Hello".getBytes("UTF8");
+  val secret:Array[Byte] = DSEncrypt(message, privateKey);
+  val recovered_message:Array[Byte] = DSDecrypt(secret, publicKey);
+  println("  return    " + new String(recovered_message, "UTF8"));
+  /*
 
 
   val keys:KeyPairGenerator = KeyPairGenerator.getInstance("RSA");
@@ -226,15 +240,7 @@ println(string.getBytes("UTF-8"))
   }
 */
 
-  def SRNG():String = {
-    val random = new scala.util.Random(new java.security.SecureRandom())
-    var key:Array[Char] = Array[Char](0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
-    for(i<- 0 until 16){
-      key(i) = random.nextPrintableChar()
-    }
 
-    return key.mkString("")
-  }
   /*for( i <- 0 to 5)
   println( " key is " + SRNG())
 */}
