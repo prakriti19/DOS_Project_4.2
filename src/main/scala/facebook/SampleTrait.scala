@@ -53,18 +53,16 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
 
   case class FbPage(pageid: Int, name: String, admin: Int, var subscribers: List[Int], wall: FbPost)
 
-  case class FbPost(var posts: ConcurrentHashMap[String, (String, String)])
+  case class FbPost(var posts: Map[String, (String, String)])
 
   case class Album(photos: List[String])
 
   implicit def executionContext = actorRefFactory.dispatcher
 
-  /*object fbFormat extends DefaultJsonProtocol {
+  object fbFormat extends DefaultJsonProtocol {
     implicit val fbPostFormat = jsonFormat1(FbPost.apply)
     implicit val userProfileFormat = jsonFormat7(UserProfile.apply)
-    implicit val facebookFriendsFormat = jsonFormat1(FacebookFriends.apply)
-    implicit val albumFormat = jsonFormat1(Album.apply)
-  }*/
+  }
 
   def DSDecrypt(text: Array[Byte], key1: PublicKey): Array[Byte] = {
     var cipherText: Array[Byte] = null
@@ -75,7 +73,7 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
     return cipherText;
   }
 
-  var initVector1:String = "RandomInitVector"
+  var initString1:String = "PratyoushKumar16"
 
   def encryptAESServer(key:String, initVector:String , value:Array[Byte]):Array[Byte] = {
     var iv:IvParameterSpec = new IvParameterSpec(initVector.getBytes("UTF-8"));
@@ -123,9 +121,9 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
     return key.mkString("")
   }
 
-  //create 10,000 users
-  for (i <- 0 to 10) {
-    val initialPost = FbPost(new ConcurrentHashMap())
+
+  for (i <- 0 to 100) {
+    val initialPost = FbPost(Map())
     //initialPost.posts += (0.toString() -> "Hello")
     // initialPost.posts.put(0.toString,"hi11")
     //initialPost.posts.put(1.toString,"hi33")
@@ -152,11 +150,11 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
     initialPost.posts.updated(0.toString,"")
     pageMap.put(i, FbPage(i, "Page"+i.toString()+ ": admin "+userProfileMap.get(r).userid, userProfileMap.get(r).userid, subscribers, initialPost ))
   }*/
-  for (i <- 0 to 10) {
+  for (i <- 0 to 100) {
     val random = new Random()
-    val r = random.nextInt(10) //number of friends
+    val r = random.nextInt(20) //number of friends
     for (j <- 0 to r) {
-      val u = random.nextInt(9) //pick a random user
+      val u = random.nextInt(99) //pick a random user
       val user = userProfileMap.get(u).userid
       if (!friendMap.contains(user)) {
         friendMap.get(i).friendList = user :: friendMap.get(i).friendList //add the random user to i's friendlist
@@ -212,6 +210,8 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
   }
   import fbFormat2._
 */
+
+  import fbFormat._
 
   val sampleRoute = {
     get {
@@ -293,7 +293,7 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
 
               var res = userProfileMap.get(id)
               complete {
-                "with id $id" + res /*.toJson.prettyPrint*/
+                "with id $id" + res.toJson.prettyPrint
               }
             } ~
             path(IntNumber / "profile" / "deleteprofile") { id =>
@@ -345,7 +345,7 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
               var res = userProfileMap.get(id).wall.posts
 
               complete {
-                "" + res.values() /*.toJson.prettyPrint*/
+                "" + res.values /*.toJson.prettyPrint*/
               }
             } ~
             path(IntNumber / "wallposts" / IntNumber / "addpost") { (userid, friendid) => //friendid posts on userid
@@ -353,7 +353,7 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
                 if (friendMap.get(userid).friendList.contains(friendid)) {
                   val size = userProfileMap.get(friendid).wall.posts.size
                   //userProfileMap.get(friendid).wall.posts += (size.toString() -> post)
-                  userProfileMap.get(friendid).wall.posts.put(size.toString, (post, key))
+                  userProfileMap.get(friendid).wall.posts += (size.toString -> (post, key))
                   complete {
                     "\nadded a post"
                   }
@@ -366,8 +366,8 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
               }
             } ~
             path(IntNumber / "wallposts" / "deletepost" / IntNumber) { (userid, postid) => //check if friend is in friendlist
-              if (userProfileMap.get(userid).wall.posts.containsKey(postid.toString())) {
-                userProfileMap.get(userid).wall.posts.remove(postid.toString())
+              if (userProfileMap.get(userid).wall.posts.contains(postid.toString())) {
+                userProfileMap.get(userid).wall.posts.-(postid.toString())
                 complete {
                   "\nDeleted post " + postid
                 }
@@ -452,8 +452,8 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
             } ~
             path(IntNumber / "page" / IntNumber / "user" / "deletepost" / IntNumber) { (pageid, userid, postid) => //check if friend is in friendlist
               if (userid == pageMap.get(pageid).admin) {
-                if (pageMap.get(pageid).wall.posts.containsKey(postid.toString())) {
-                  pageMap.get(pageid).wall.posts.remove(postid.toString())
+                if (pageMap.get(pageid).wall.posts.contains(postid.toString())) {
+                  pageMap.get(pageid).wall.posts.-(postid.toString())
                   complete {
                     "\nDeleted post " + postid
                   }
@@ -495,9 +495,9 @@ trait SampleTrait extends HttpService with DefaultJsonProtocol {
 
                 val byteArray = Files.readAllBytes(Paths.get(ftmp))
                 //println(ftmp +  "  this is the path")
-                val encryptedByteArray = encryptAESServer(key, initVector1, byteArray)
+                val encryptedByteArray = encryptAESServer(key, initString1, byteArray)
                 val encodedByteArray = Base64.encodeBase64String(encryptedByteArray)
-                //println("Picture Uploaded " + new String (byteArray, "UTF-8"))
+                println("Picture Uploaded " + new String (byteArray, "UTF-8"))
 
                 val u1 = userProfileMap.get(id)
                 val u2 = u1.copy(picture =(encodedByteArray,encryptKey) )

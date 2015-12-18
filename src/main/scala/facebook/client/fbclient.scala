@@ -50,10 +50,10 @@ class Master extends Actor with SampleTrait{
           val child = context.system.actorOf(Props(new ClientUser(pipeline,i, friendlist)), "activeuser"+i.toString)
           child ! "medium"
         }*/
-        for(i<- 0 to 10){
+        for(i<- 0 to 100){
           val friendlist = friendMap.get(i).friendList
           val child = context.system.actorOf(Props(new ClientUser(pipeline,i, friendlist)), "activeuser"+i.toString)
-          child ! "low"
+          child ! "Start"
         }
     }
   }
@@ -89,7 +89,7 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
   val keypair:KeyPair = keys.generateKeyPair
   val privateKey:PrivateKey = keypair.getPrivate;
   val publicKey:PublicKey = keypair.getPublic;
- var initVector:String = "RandomInitVector"; // 16 byte IV
+ var initString:String = "PratyoushKumar16"
   //val password = "user"+userid.toString;
   var loginStatus: String = ""
 
@@ -118,7 +118,7 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
         sender ! returnVal
       }
 
-      case "low" => {
+      case "Start" => {
 
         var encodedPublicKey = Base64.encodeBase64URLSafeString(publicKey.getEncoded)
 
@@ -152,7 +152,7 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
               println(s"Profile \n " + response.entity.asString)
             }
           })
-          context.system.scheduler.schedule(0 seconds, 30 seconds)({
+          context.system.scheduler.schedule(0 seconds, 40 seconds)({
             val random = new Random()
             val r = random.nextInt(friendlist.size - 1)
             var result = Get("http://localhost:8080/" + friendlist(r).toString + "/profile") ~> sendReceive
@@ -171,14 +171,14 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
               if( !getPicKeyPair(1).toString.equals("key")){
                 var key = new String((decrypt(decodedKey,privateKey)), "UTF-8")
                 var decodedPicture = Base64.decodeBase64(getPicKeyPair(0))
-                var decryptedPicture = decryptAES(key, initVector, decodedPicture)
+                var decryptedPicture = decryptAES(key, initString, decodedPicture)
                 println(" Picture " + new String(decryptedPicture, "UTF-8"))
               }
               }
             }
           })
 
-          context.system.scheduler.schedule(0 seconds, 30 seconds)({
+          context.system.scheduler.schedule(0 seconds, 20 seconds)({
             var result = pipeline(Get("http://localhost:8080/" + userid + "/wallposts"))
             result.foreach { response =>
               var postMapnew = response.entity.asString
@@ -191,9 +191,12 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
                   row(i) = row(i).replaceFirst("\\)\\]", "")
                   var parts: Array[String] = row(i).split(",")
                   parts(0) = parts(0).replaceAll("_", "=")
+
                   parts(1) = parts(1).replaceAll("_", "=") // error for part 1
                   parts(0) = parts(0).replaceAll(" ", "+")
                   parts(1) = parts(1).replaceAll(" ", "+")
+                  parts(0) = parts(0).replaceAll("MapLike\\(\\(", "")
+                  println( " parts 0 " + parts(0) + " part 1 " + parts(1))
                   mapOfRow.put(i, (parts(0), parts(1)))
                 }
               }
@@ -207,7 +210,7 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
                 for (i <- 0 until mapOfRow.size()) {
                   var key = decrypt(Base64.decodeBase64(mapOfRow.get(i)._2), privateKey)
                   //println( " key here " + key)
-                  var posts = decryptAES(new String(key, "UTF-8"), initVector, Base64.decodeBase64(mapOfRow.get(i)._1))
+                  var posts = decryptAES(new String(key, "UTF-8"), initString, Base64.decodeBase64(mapOfRow.get(i)._1))
 
                   postMap += (i.toString -> (new String(posts, "UTF-8")))
 
@@ -239,6 +242,7 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
                   parts(1) = parts(1).replaceAll("_", "=")
                   parts(0) = parts(0).replaceAll(" ", "+")
                   parts(1) = parts(1).replaceAll(" ", "+")
+                  parts(0) = parts(0).replaceAll("MapLike\\(\\(", "")
                   mapOfRow.put(i, (parts(0), parts(1)))
                 }
               }
@@ -252,7 +256,7 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
                 var postMap: Map[String, String] = Map()
                 for (i <- 0 until friendPost.size()) {
                   var key = decrypt(Base64.decodeBase64(friendPost.get(i)._2), privateKey) //226 error
-                  var posts = decryptAES(new String(key, "UTF-8"), initVector, Base64.decodeBase64(friendPost.get(i)._1))
+                  var posts = decryptAES(new String(key, "UTF-8"), initString, Base64.decodeBase64(friendPost.get(i)._1))
 
                   postMap += (i.toString->(new String(posts, "UTF-8")))
                   //println(" My Friends Wall Posts!! " + new String(posts, "UTF-8"))
@@ -265,13 +269,13 @@ class ClientUser(pipeline: pipelining.SendReceive,userid: Int, friendlist: List[
             }
           })
 
-          context.system.scheduler.schedule(0 seconds, 20 seconds)({
+          context.system.scheduler.schedule(0 seconds, 10 seconds)({
             val random = new Random()
             val r = random.nextInt(friendlist.size - 1)
             val friendid = friendlist(r)
             var postMsg: Array[Byte] = ("Hello" + userid.toString).getBytes("UTF-8")
             var key: String = SRNG()
-            var encryptedwithAES: Array[Byte] = encryptAES(key, initVector, postMsg);
+            var encryptedwithAES: Array[Byte] = encryptAES(key, initString, postMsg);
             implicit val timeout = Timeout(5 seconds)
             val future = context.actorSelection("../activeuser" + friendid.toString) ? "publickey" // asking for public key from actor
             val friendPublicKey = Await.result(future, timeout.duration).asInstanceOf[PublicKey]
