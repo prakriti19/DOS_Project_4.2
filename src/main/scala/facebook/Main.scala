@@ -22,9 +22,6 @@ import scala.collection.convert.Wrappers.ConcurrentMapWrapper
 import scala.collection.immutable._
 
 
-/**
-  * Created by Pratyoush on 20-11-2015.
-  */
 object Main extends App {
 
   implicit val system = ActorSystem("Facebook")
